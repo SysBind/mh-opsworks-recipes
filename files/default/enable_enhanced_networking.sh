@@ -2,9 +2,10 @@
 set -e
 dkms_version=$1
 bucket_name=$2
+running_kernel=$(uname -r)
 
-if modinfo ixgbevf | grep $dkms_version > /dev/null; then
-  echo "already installed ixgbevf $dkms_version"
+if dkms status -m ixgbevf -v $dkms_version -k $running_kernel | grep installed > /dev/null; then
+  echo "already installed ixgbevf $dkms_version for kernel $running_kernel"
   exit 0;
 fi
 
@@ -21,6 +22,9 @@ rm -Rf /usr/src/ixgbevf-$dkms_version
 mv ixgbevf-$dkms_version /usr/src/
 cd /usr/src/ixgbevf-$dkms_version
 
+# ABS check in the ixgbevf module is incompatible with the AWS kernel versioning scheme
+sudo sed -i '/#if UTS_UBUNTU_RELEASE_ABI > 255/c\/*#if UTS_UBUNTU_RELEASE_ABI > 255' /usr/src/ixgbevf-${dkms_version}/src/kcompat.h
+
 echo 'PACKAGE_NAME="ixgbevf"' > /usr/src/"ixgbevf-${dkms_version}"/dkms.conf
 echo "PACKAGE_VERSION=\"${dkms_version}\"" >> /usr/src/"ixgbevf-${dkms_version}"/dkms.conf
 echo '
@@ -33,12 +37,9 @@ DEST_MODULE_NAME[0]="ixgbevf"
 AUTOINSTALL="yes"
 ' >> /usr/src/"ixgbevf-${dkms_version}"/dkms.conf &&
 
-# again, probably only necessary in some edge dev case
-if dkms status | grep $dkms_version > /dev/null; then
-    dkms remove -m ixgbevf -v $dkms_version --all
-fi
-
+dkms remove ixgbevf -v $dkms_version --all 2>/dev/null || true
 dkms add -m ixgbevf -v $dkms_version
 dkms build -m ixgbevf -v $dkms_version
 dkms install -m ixgbevf -v $dkms_version
+dkms autoinstall -m ixgbevf
 update-initramfs -c -k all
