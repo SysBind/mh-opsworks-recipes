@@ -9,6 +9,7 @@ DEPENDENCIES
   oc-opsworks-recipes
     path: .
     metadata: true
+  reboot (~> 1.0.0)
 
 GRAPH
   activemq (2.0.4)
@@ -49,6 +50,9 @@ GRAPH
     maven (~> 2.2.0)
     nfs (~> 2.1.0)
     nodejs (~> 2.4.4)
+    reboot (~> 1.0.0)
+  reboot (1.0.0)
+    chef_handler (>= 0.0.0)
   seven_zip (2.0.0)
     windows (>= 1.2.2)
   windows (1.39.2)

@@ -7,5 +7,6 @@ cookbook 'nodejs', '~> 2.4.4'
 cookbook 'activemq', '~> 2.0.4'
 cookbook 'java', '1.47'
 cookbook 'maven', '~> 2.2.0'
+cookbook 'reboot', '~> 1.0.0'
 
 metadata
