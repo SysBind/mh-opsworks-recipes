@@ -1,10 +1,12 @@
 #!/bin/bash
 set -e
-dkms_version=$1
-bucket_name=$2
 
-if modinfo ixgbevf | grep $dkms_version > /dev/null; then
-  echo "already installed ixgbevf $dkms_version"
+dkms_version=$1
+kernel_version=$2
+bucket_name=$3
+
+if dkms status -m ixgbevf -v $dkms_version -k $kernel_version | grep installed > /dev/null; then
+  echo "already installed ixgbevf driver $dkms_version for kernel $kernel_version"
   exit 0;
 fi
 
@@ -15,30 +17,36 @@ cd /root/build_tmp
 aws s3 cp s3://$bucket_name/ixgbevf-$dkms_version.tar.gz .
 tar zxf ixgbevf-$dkms_version.tar.gz
 
-# this shouldn't be needed except in some odd development scenario
 rm -Rf /usr/src/ixgbevf-$dkms_version
-
 mv ixgbevf-$dkms_version /usr/src/
 cd /usr/src/ixgbevf-$dkms_version
 
-echo 'PACKAGE_NAME="ixgbevf"' > /usr/src/"ixgbevf-${dkms_version}"/dkms.conf
-echo "PACKAGE_VERSION=\"${dkms_version}\"" >> /usr/src/"ixgbevf-${dkms_version}"/dkms.conf
-echo '
+(
+cat <<EOF
+PACKAGE_NAME="ixgbevf"
+PACKAGE_VERSION="$dkms_version"
 CLEAN="cd src/; make clean"
-MAKE="cd src/; make BUILD_KERNEL=${kernelver}"
 BUILT_MODULE_LOCATION[0]="src/"
 BUILT_MODULE_NAME[0]="ixgbevf"
 DEST_MODULE_LOCATION[0]="/updates"
 DEST_MODULE_NAME[0]="ixgbevf"
 AUTOINSTALL="yes"
-' >> /usr/src/"ixgbevf-${dkms_version}"/dkms.conf &&
+EOF
+) > /usr/src/ixgbevf-$dkms_version/dkms.conf
 
-# again, probably only necessary in some edge dev case
-if dkms status | grep $dkms_version > /dev/null; then
-    dkms remove -m ixgbevf -v $dkms_version --all
-fi
+# $kernelver is a variable set internally by the dkms build process
+# append it separately because the bash heredoc would try to interpolate it
+echo 'MAKE="cd src/; make BUILD_KERNEL=${kernelver}"' >> /usr/src/ixgbevf-$dkms_version/dkms.conf
 
-dkms add -m ixgbevf -v $dkms_version
-dkms build -m ixgbevf -v $dkms_version
-dkms install -m ixgbevf -v $dkms_version
+# dkms will sometimes return non-zero exit, but we want to proceed anyway
+set +e
+
+# necessary if there was a previously failed build
+dkms remove -m ixgbevf/$dkms_version --all | logger -t dkms || true
+
+dkms add -m ixgbevf -v $dkms_version | logger -t dkms
+dkms build -m ixgbevf -v $dkms_version -k $kernel_version | logger -t dkms
+dkms install -m ixgbevf -v $dkms_version -k $kernel_version | logger -t dkms
+dkms autoinstall -m ixgbevf -v $dkms_version | logger -t dkms
 update-initramfs -c -k all
+

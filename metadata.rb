@@ -994,7 +994,10 @@ recipe(
 none
 
 === effects
+* forces log rotation of the apt-get history
 * performs an apt-get dist-upgrade
+* greps apt history.log to find any newly installed kernel
+* executes enable-enhanced-networking script to build ixgbevf module for new kernel
 '
 )
 recipe(
