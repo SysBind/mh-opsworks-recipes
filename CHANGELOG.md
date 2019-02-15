@@ -1,5 +1,7 @@
 # CHANGELOG
 
+* MI-157: Re-disable proxy buffering for the admin node's `/assets` path
+
 ## TO BE RELEASED
 
 * MI-156: Update engage nginx to allow requests from localhost for OpencastAvailable metric
